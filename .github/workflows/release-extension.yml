@@ -25,7 +25,9 @@ jobs:
 
       - name: Install dependencies
         working-directory: apps/extension
-        run: npm ci --include=optional
+        run: |
+          npm ci --include=optional
+          npm install --no-save @rollup/rollup-linux-x64-gnu
 
       - name: Build extension
         working-directory: apps/extension
