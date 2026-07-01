@@ -26,6 +26,8 @@
 
 ## 快速启动
 
+默认使用 Mock LLM，适合无 API Key 的本地演示：
+
 在项目根目录执行：
 
 ```bash
@@ -37,6 +39,22 @@ docker compose up --build
 - API 服务：http://localhost:8000
 - OpenAPI 文档：http://localhost:8000/docs
 - 健康检查：http://localhost:8000/health
+
+如需使用通义千问 / Qwen，将 `LLM_PROVIDER` 设置为 `tongyi`，并在本机环境变量中提供 DashScope API Key：
+
+```powershell
+$env:LLM_PROVIDER="tongyi"
+$env:OPENAI_API_KEY="your_dashscope_api_key"
+docker compose up --build
+```
+
+也可以使用 `DASHSCOPE_API_KEY`：
+
+```powershell
+$env:LLM_PROVIDER="tongyi"
+$env:DASHSCOPE_API_KEY="your_dashscope_api_key"
+docker compose up --build
+```
 
 ## 插件构建与加载
 
@@ -86,5 +104,13 @@ pytest
 ```bash
 cp apps/api/.env.example apps/api/.env
 ```
+
+模型相关变量：
+
+- `LLM_PROVIDER=mock`：默认 Mock 模式。
+- `LLM_PROVIDER=tongyi`：启用通义千问 / Qwen Provider。
+- `DASHSCOPE_API_KEY`：DashScope API Key。
+- `OPENAI_API_KEY`：兼容 OpenAI SDK 命名的 DashScope API Key，项目会在没有 `DASHSCOPE_API_KEY` 时读取它。
+- `DASHSCOPE_MODEL`：默认 `qwen-plus`。
 
 注意：`.env`、本地数据库数据、依赖目录和构建产物不会提交到 Git。

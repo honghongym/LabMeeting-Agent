@@ -16,13 +16,13 @@ from app.llm.mock import MockProvider
 class TongyiProvider(LLMProvider):
     """Tongyi OpenAI-compatible adapter with a mock fallback for open-source demos.
 
-    The public repo can run without credentials. When DASHSCOPE_API_KEY is set,
-    this class is the single integration point to replace the fallback with
-    DashScope/Qwen structured output calls.
+    The public repo can run without credentials. When DASHSCOPE_API_KEY or
+    OPENAI_API_KEY is set, this class is the single integration point to
+    replace the fallback with DashScope/Qwen structured output calls.
     """
 
     def __init__(self) -> None:
-        self.api_key = os.getenv("DASHSCOPE_API_KEY")
+        self.api_key = os.getenv("DASHSCOPE_API_KEY") or os.getenv("OPENAI_API_KEY")
         self.base_url = os.getenv(
             "DASHSCOPE_BASE_URL",
             "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",

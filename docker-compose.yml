@@ -30,6 +30,12 @@ services:
       context: ./apps/api
     env_file:
       - ./apps/api/.env.example
+    environment:
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DASHSCOPE_BASE_URL: ${DASHSCOPE_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions}
+      DASHSCOPE_MODEL: ${DASHSCOPE_MODEL:-qwen-plus}
     ports:
       - "8000:8000"
     depends_on:
@@ -46,6 +52,12 @@ services:
     command: celery -A app.tasks.celery_app worker --loglevel=INFO -Q agent
     env_file:
       - ./apps/api/.env.example
+    environment:
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DASHSCOPE_BASE_URL: ${DASHSCOPE_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions}
+      DASHSCOPE_MODEL: ${DASHSCOPE_MODEL:-qwen-plus}
     depends_on:
       postgres:
         condition: service_healthy
