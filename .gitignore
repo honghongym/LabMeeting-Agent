@@ -15,6 +15,7 @@ node_modules/
 dist/
 build/
 apps/extension/dist/
+release/
 
 # Environment variables and secrets
 .env

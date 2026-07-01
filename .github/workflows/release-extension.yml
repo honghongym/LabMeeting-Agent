@@ -1,0 +1,47 @@
+name: Release Extension
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-extension:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/extension/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/extension
+        run: npm ci --include=optional
+
+      - name: Build extension
+        working-directory: apps/extension
+        run: npm run build
+
+      - name: Package extension
+        run: |
+          cd apps/extension/dist
+          zip -r ../../../LabMeeting-Agent-extension-${GITHUB_REF_NAME}.zip .
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: LabMeeting-Agent ${{ github.ref_name }}
+          body: |
+            Chrome/Edge extension build for LabMeeting-Agent.
+
+            Load the unzipped package in Chrome or Edge extension developer mode.
+          files: LabMeeting-Agent-extension-${{ github.ref_name }}.zip
