@@ -318,12 +318,17 @@ function DraftView(props: {
   onRefresh: () => void;
   setShowRaw: (value: boolean) => void;
 }) {
+  const failedMessage =
+    props.status?.task_status === "failed"
+      ? props.status.error_message || props.status.progress_message || "任务处理失败，请查看后端日志。"
+      : props.status?.progress_message ?? "提交转录后，Agent 会在这里生成可确认的结构化草稿。";
+
   if (!props.draft) {
     return (
       <div className="emptyState">
         <Loader2 className={props.status && props.status.task_status !== "failed" ? "spin" : ""} size={24} />
         <h2>{props.status ? statusLabels[props.status.task_status] ?? props.status.task_status : "等待任务"}</h2>
-        <p>{props.status?.progress_message ?? "提交转录后，Agent 会在这里生成可确认的结构化草稿。"}</p>
+        <p className={props.status?.task_status === "failed" ? "errorText" : ""}>{failedMessage}</p>
         <ProgressBar value={props.status?.progress_percent ?? 0} />
         <button className="secondaryButton" onClick={props.onRefresh}>
           <RotateCw size={15} /> 刷新状态

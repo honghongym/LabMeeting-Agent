@@ -390,6 +390,11 @@ textarea {
   margin: 0;
 }
 
+.emptyState p.errorText {
+  color: #b91c1c;
+  word-break: break-word;
+}
+
 .progressTrack {
   background: #e5e7eb;
   border-radius: 999px;

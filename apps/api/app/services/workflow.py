@@ -121,9 +121,14 @@ class WorkflowRunner:
             MeetingType.MIDTERM_DEFENSE,
             MeetingType.FINAL_DEFENSE,
         }:
+            if meeting_type == MeetingType.PROJECT_REPORT and "per_student_reports" not in result:
+                raise ValueError("LLM result missing required key: per_student_reports")
+            if meeting_type == MeetingType.LITERATURE_REVIEW and "literature_info" not in result:
+                raise ValueError("LLM result missing required key: literature_info")
             return
 
+        if "evaluation_dimensions" not in result:
+            raise ValueError("LLM result missing required key: evaluation_dimensions")
         assert_no_binary_defense_judgement(str(result))
         for dimension in result.get("evaluation_dimensions", []):
             validate_confidence_tendency(dimension.get("confidence_tendency", ""))
-

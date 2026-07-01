@@ -60,10 +60,7 @@ class TongyiProvider(LLMProvider):
                 "primary_speakers": chunk.primary_speakers,
                 "raw_text": chunk.raw_text,
             },
-            "output_contract": {
-                "payload": "structured extraction JSON for this chunk",
-                "rolling_state": "compact JSON memory for the next batch",
-            },
+            "output_contract": self._map_contract(meeting_type),
         }
         content, usage = await self._chat_json(prompt)
         return MapExtraction(
@@ -97,9 +94,10 @@ class TongyiProvider(LLMProvider):
             ],
             "historical_memory": historical_memory[:12],
             "speaker_mapping": speaker_mapping,
-            "output_contract": "Return the final schema JSON only. Do not include markdown fences.",
+            "output_contract": self._reduce_contract(meeting_type),
         }
-        return await self._chat_json(prompt)
+        content, usage = await self._chat_json(prompt)
+        return self._unwrap_final_result(content), usage
 
     async def _chat_json(self, prompt: dict[str, Any]) -> tuple[dict[str, Any], LLMUsage]:
         return await asyncio.to_thread(self._chat_json_sync, prompt)
@@ -140,10 +138,185 @@ class TongyiProvider(LLMProvider):
 
         data = json.loads(raw)
         message = data["choices"][0]["message"]["content"]
-        parsed = json.loads(message)
+        parsed = self._parse_json_content(message)
         usage_data = data.get("usage") or {}
         usage = LLMUsage(
             prompt_tokens=int(usage_data.get("prompt_tokens") or 0),
             completion_tokens=int(usage_data.get("completion_tokens") or 0),
         )
         return parsed, usage
+
+    def _parse_json_content(self, content: Any) -> dict[str, Any]:
+        if isinstance(content, dict):
+            return content
+        text = str(content).strip()
+        if text.startswith("```"):
+            text = text.strip("`").strip()
+            if text.lower().startswith("json"):
+                text = text[4:].strip()
+        parsed = json.loads(text)
+        if not isinstance(parsed, dict):
+            raise ValueError("Tongyi response must be a JSON object")
+        return parsed
+
+    def _unwrap_final_result(self, content: dict[str, Any]) -> dict[str, Any]:
+        for key in ("draft_result", "final_result", "result", "payload"):
+            value = content.get(key)
+            if isinstance(value, dict):
+                return value
+        return content
+
+    def _map_contract(self, meeting_type: MeetingType) -> dict[str, Any]:
+        if meeting_type == MeetingType.LITERATURE_REVIEW:
+            payload = {
+                "kind": "literature_review_map",
+                "title": "paper title or 未命名文献",
+                "method_summary": "core method summary",
+                "innovation_points": ["short point"],
+                "qa": ["question and answer summary"],
+                "duplication_check_needed": True,
+                "presenter_label": "speaker label from transcript",
+                "evidence_quote_ref": "chunk_id:start_time",
+            }
+        elif meeting_type in {MeetingType.PROPOSAL_DEFENSE, MeetingType.MIDTERM_DEFENSE, MeetingType.FINAL_DEFENSE}:
+            payload = {
+                "kind": "defense_evaluation_map",
+                "candidate_label": "speaker label",
+                "dimension_evidence": [
+                    {
+                        "dimension_name": "研究方案可行性",
+                        "evidence_excerpts": [
+                            {"content_summary": "evidence summary", "evidence_quote_ref": "chunk_id:start_time"}
+                        ],
+                        "confidence_tendency": "moderate_support",
+                        "note": "evidence-based note without pass/fail judgement",
+                    }
+                ],
+                "qa": ["question and answer summary"],
+                "meeting_type": meeting_type.value,
+            }
+        else:
+            payload = {
+                "kind": "project_report_map",
+                "reports": [
+                    {
+                        "speaker_label": "speaker label",
+                        "completed": ["completed work"],
+                        "blockers": ["risk or blocker"],
+                        "plans": ["next plan"],
+                        "advisor_feedback": ["advisor feedback"],
+                        "evidence_quote_ref": "chunk_id:start_time",
+                    }
+                ],
+                "commitments": [
+                    {"speaker_label": "speaker label", "description": "commitment", "evidence_quote_ref": "chunk_id"}
+                ],
+                "questions": [{"speaker_label": "speaker label", "question": "question"}],
+            }
+        return {
+            "format": "Return valid JSON only. Do not include markdown fences.",
+            "required_top_level_keys": ["payload", "rolling_state"],
+            "payload_schema": payload,
+            "rolling_state_schema": {
+                "current_topic": "compact topic",
+                "recent_commitments": ["short commitment"],
+                "open_questions": ["short question"],
+                "last_chunk_id": "chunk id",
+            },
+        }
+
+    def _reduce_contract(self, meeting_type: MeetingType) -> dict[str, Any]:
+        if meeting_type == MeetingType.LITERATURE_REVIEW:
+            schema = {
+                "meeting_type": "literature_review",
+                "presenter": {"user_id": "mapped speaker value", "display_name": "mapped speaker value"},
+                "literature_info": {
+                    "title": "paper title",
+                    "authors_if_mentioned": None,
+                    "venue_if_mentioned": None,
+                    "core_method_summary": "method summary",
+                    "innovation_points": ["point"],
+                    "relation_to_existing_work": "history comparison",
+                },
+                "comprehension_assessment": {
+                    "depth_indicator": "shallow|moderate|deep",
+                    "supporting_evidence": [
+                        {"qa_exchange_summary": "QA summary", "evidence_quote_ref": "chunk ref"}
+                    ],
+                },
+                "advisor_qa_log": [
+                    {"question": "question", "response_summary": "answer summary", "advisor_followup_comment": None}
+                ],
+                "duplication_check_needed": True,
+                "duplication_insight": "duplication insight",
+            }
+        elif meeting_type in {MeetingType.PROPOSAL_DEFENSE, MeetingType.MIDTERM_DEFENSE, MeetingType.FINAL_DEFENSE}:
+            schema = {
+                "meeting_type": meeting_type.value,
+                "candidate": {
+                    "user_id": "mapped speaker value",
+                    "display_name": "mapped speaker value",
+                    "degree_type": "master",
+                    "enrollment_year": "2024",
+                },
+                "evaluation_dimensions": [
+                    {
+                        "dimension_name": "研究方案可行性",
+                        "evidence_excerpts": [
+                            {"content_summary": "evidence summary", "evidence_quote_ref": "chunk ref"}
+                        ],
+                        "confidence_tendency": "strong_support|moderate_support|insufficient_evidence|concern_raised",
+                        "note": "evidence-based note; do not say pass or fail",
+                    }
+                ],
+                "qa_session_log": [
+                    {
+                        "question": "question",
+                        "questioner_role": "advisor",
+                        "candidate_response_summary": "answer summary",
+                        "response_quality_note": "evidence-based note",
+                    }
+                ],
+                "comparison_with_history": {
+                    "previous_defense_questions_revisited": [],
+                    "deviation_from_original_plan": "history comparison",
+                },
+            }
+        else:
+            schema = {
+                "meeting_type": "project_report",
+                "participants": [{"user_id": "mapped speaker value", "display_name": "mapped speaker value", "attended": True}],
+                "per_student_reports": [
+                    {
+                        "user_id": "mapped speaker value",
+                        "display_name": "mapped speaker value",
+                        "previous_commitments_review": [
+                            {
+                                "commitment_description": "historical commitment",
+                                "expected_date": None,
+                                "current_status": "open|done|overdue|unknown",
+                                "evidence_quote_ref": "history ref",
+                            }
+                        ],
+                        "this_week_completed": [{"description": "completed work", "evidence_quote_ref": "chunk ref"}],
+                        "current_blockers": [{"description": "blocker", "mentioned_severity": "low|medium|high"}],
+                        "next_week_plan": [{"description": "next plan", "target_date_if_mentioned": "下周"}],
+                        "advisor_feedback": [
+                            {"feedback_content": "advisor feedback", "related_to_which_item": "related item"}
+                        ],
+                    }
+                ],
+                "project_level_summary": {
+                    "overall_progress_note": "overall summary",
+                    "cross_student_risk_signals": ["risk"],
+                },
+            }
+        return {
+            "format": "Return this final schema JSON object only. Do not wrap it in another key.",
+            "schema": schema,
+            "constraints": [
+                "Use speaker_mapping values for user_id and display_name when possible.",
+                "Keep evidence summaries concise.",
+                "For defense reports, never output pass/fail/通过/不通过 style judgements.",
+            ],
+        }
