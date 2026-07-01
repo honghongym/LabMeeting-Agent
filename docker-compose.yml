@@ -1,0 +1,80 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: agent
+      POSTGRES_PASSWORD: agent
+      POSTGRES_DB: meeting_agent
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agent -d meeting_agent"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ./apps/api
+    env_file:
+      - ./apps/api/.env.example
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/api/app:/app/app
+
+  worker:
+    build:
+      context: ./apps/api
+    command: celery -A app.tasks.celery_app worker --loglevel=INFO -Q agent
+    env_file:
+      - ./apps/api/.env.example
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/api/app:/app/app
+
+  extension-build:
+    image: node:20-bookworm-slim
+    profiles:
+      - build-tools
+    working_dir: /tmp/extension-build
+    command: >
+      sh -c "cp -R /workspace/apps/extension/package.json
+      /workspace/apps/extension/package-lock.json
+      /workspace/apps/extension/index.html
+      /workspace/apps/extension/tsconfig.json
+      /workspace/apps/extension/vite.config.ts
+      /workspace/apps/extension/src
+      /workspace/apps/extension/public
+      . &&
+      npm ci --include=optional &&
+      npm install --no-save @rollup/rollup-linux-x64-gnu &&
+      npm run build &&
+      rm -rf /workspace/apps/extension/dist &&
+      cp -R dist /workspace/apps/extension/dist"
+    volumes:
+      - ./:/workspace
+
+volumes:
+  postgres_data:

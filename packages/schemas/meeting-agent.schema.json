@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/meeting-agent.schema.json",
+  "title": "Graduate Meeting Agent Shared Schemas",
+  "type": "object",
+  "definitions": {
+    "MeetingType": {
+      "type": "string",
+      "enum": [
+        "project_report",
+        "literature_review",
+        "proposal_defense",
+        "midterm_defense",
+        "final_defense"
+      ]
+    },
+    "TaskStatus": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "segmenting",
+        "extracting",
+        "reducing",
+        "awaiting_confirmation",
+        "confirmed",
+        "failed"
+      ]
+    },
+    "ConfidenceTendency": {
+      "type": "string",
+      "enum": [
+        "strong_support",
+        "moderate_support",
+        "insufficient_evidence",
+        "concern_raised"
+      ]
+    }
+  }
+}
+

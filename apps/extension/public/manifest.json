@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "研究生组会智能纪要 Agent",
+  "version": "0.1.0",
+  "description": "上传组会转录文本，生成结构化纪要、长期记忆和角色化报告。",
+  "action": {
+    "default_popup": "index.html"
+  },
+  "permissions": ["storage"],
+  "host_permissions": ["http://localhost:8000/*"]
+}
+

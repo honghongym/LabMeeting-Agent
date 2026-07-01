@@ -1,0 +1,50 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Node / Vite
+node_modules/
+dist/
+build/
+apps/extension/dist/
+
+# Environment variables and secrets
+.env
+.env.*
+!**/.env.example
+*.pem
+*.key
+*.crt
+
+# Local runtime data
+postgres_data/
+redis_data/
+*.sqlite
+*.sqlite3
+*.db
+celerybeat-schedule
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Private notes and source design docs
+.git.broken/
+docs/private/
+研究生组会智能纪要_功能架构设计手册.docx
