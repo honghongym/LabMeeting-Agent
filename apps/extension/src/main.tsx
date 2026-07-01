@@ -7,18 +7,20 @@ import {
   Check,
   CheckCircle2,
   ClipboardCheck,
+  Download,
   FileText,
   Loader2,
+  Maximize2,
   MessageSquareText,
+  Minimize2,
   Play,
   RotateCw,
-  Settings,
   Sparkles,
   UserRound,
   UsersRound
 } from "lucide-react";
 import { confirmTask, createTask, getDraft, getReport, getStatus } from "./api";
-import type { MeetingType, ReportResponse, TaskDraftResponse, TaskStatusResponse } from "./types";
+import type { LLMProviderMode, MeetingType, ReportResponse, TaskDraftResponse, TaskStatusResponse } from "./types";
 import "./styles.css";
 
 type ViewKey = "input" | "draft" | "report";
@@ -40,6 +42,11 @@ const meetingTypeLabels: Record<MeetingType, string> = {
   final_defense: "毕业答辩"
 };
 
+const llmProviderLabels: Record<LLMProviderMode, string> = {
+  mock: "Mock 模式",
+  tongyi: "真实 LLM"
+};
+
 const statusLabels: Record<string, string> = {
   queued: "排队中",
   segmenting: "分段中",
@@ -53,6 +60,7 @@ const statusLabels: Record<string, string> = {
 function App() {
   const [view, setView] = useState<ViewKey>("input");
   const [meetingType, setMeetingType] = useState<MeetingType>("project_report");
+  const [llmProvider, setLlmProvider] = useState<LLMProviderMode>("mock");
   const [transcript, setTranscript] = useState(sampleTranscript);
   const [speakerMapping, setSpeakerMapping] = useState("发言人1=李老师\n发言人2=张同学\n发言人3=王同学");
   const [taskId, setTaskId] = useState<string | null>(null);
@@ -63,11 +71,24 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showRaw, setShowRaw] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const mapping = useMemo(() => parseMapping(speakerMapping), [speakerMapping]);
   const taskReady = status?.task_status === "awaiting_confirmation";
   const confirmed = status?.task_status === "confirmed";
   const draftResult = draft?.draft_result ?? null;
+  const activeResult = useMemo(() => {
+    if (view === "report" && report?.report) {
+      return { kind: "report", value: report.report };
+    }
+    if (draftResult) {
+      return { kind: "draft", value: draftResult };
+    }
+    if (report?.report) {
+      return { kind: "report", value: report.report };
+    }
+    return null;
+  }, [draftResult, report?.report, view]);
 
   useEffect(() => {
     if (!taskId || taskReady || confirmed || status?.task_status === "failed") {
@@ -99,6 +120,7 @@ function App() {
         lab_id: "lab_demo",
         project_id: "project_agent",
         meeting_type: meetingType,
+        llm_provider: llmProvider,
         meeting_date: new Date().toISOString().slice(0, 10),
         raw_transcript: transcript,
         speaker_mapping: mapping
@@ -159,8 +181,21 @@ function App() {
     }
   }
 
+  function downloadResult() {
+    if (!activeResult) return;
+    const payload = {
+      task_id: taskId,
+      meeting_type: meetingType,
+      llm_provider: llmProvider,
+      result_type: activeResult.kind,
+      exported_at: new Date().toISOString(),
+      result: activeResult.value
+    };
+    downloadJson(`labmeeting-${activeResult.kind}-${taskId ?? "latest"}.json`, payload);
+  }
+
   return (
-    <main className="appShell">
+    <main className={`appShell ${expanded ? "expanded" : ""}`}>
       <header className="appHeader">
         <div className="brand">
           <div className="brandMark">
@@ -168,12 +203,17 @@ function App() {
           </div>
           <div>
             <h1>组会纪要 Agent</h1>
-            <p>{meetingTypeLabels[meetingType]} · 长周期记忆</p>
+            <p>{meetingTypeLabels[meetingType]} · {llmProviderLabels[llmProvider]}</p>
           </div>
         </div>
-        <button className="iconButton" title="设置">
-          <Settings size={17} />
-        </button>
+        <div className="headerActions">
+          <button className="iconButton" title="下载当前结果" onClick={downloadResult} disabled={!activeResult}>
+            <Download size={17} />
+          </button>
+          <button className={`iconButton ${expanded ? "active" : ""}`} title={expanded ? "恢复弹窗尺寸" : "放大展示"} onClick={() => setExpanded(!expanded)}>
+            {expanded ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
+          </button>
+        </div>
       </header>
 
       <section className="statusStrip">
@@ -181,7 +221,7 @@ function App() {
           <span className={`statusDot ${status?.task_status ?? "idle"}`} />
           {status ? statusLabels[status.task_status] ?? status.task_status : "待提交"}
         </div>
-        <span>{status?.token_consumed ? `${status.token_consumed} tokens` : "Mock 模式"}</span>
+        <span>{status?.token_consumed ? `${status.token_consumed} tokens` : llmProviderLabels[llmProvider]}</span>
       </section>
 
       <nav className="tabs">
@@ -202,6 +242,8 @@ function App() {
             busy={busy}
             meetingType={meetingType}
             setMeetingType={setMeetingType}
+            llmProvider={llmProvider}
+            setLlmProvider={setLlmProvider}
             speakerMapping={speakerMapping}
             setSpeakerMapping={setSpeakerMapping}
             transcript={transcript}
@@ -256,6 +298,8 @@ function InputView(props: {
   busy: boolean;
   meetingType: MeetingType;
   setMeetingType: (value: MeetingType) => void;
+  llmProvider: LLMProviderMode;
+  setLlmProvider: (value: LLMProviderMode) => void;
   speakerMapping: string;
   setSpeakerMapping: (value: string) => void;
   transcript: string;
@@ -277,6 +321,13 @@ function InputView(props: {
                 {label}
               </option>
             ))}
+          </select>
+        </label>
+        <label className="fieldLabel">
+          模型模式
+          <select value={props.llmProvider} onChange={(event) => props.setLlmProvider(event.target.value as LLMProviderMode)}>
+            <option value="mock">Mock 模式</option>
+            <option value="tongyi">真实 LLM</option>
           </select>
         </label>
         <label className="fieldLabel">
@@ -689,6 +740,16 @@ function text(value: unknown, fallback = ""): string {
   if (typeof value === "string") return value || fallback;
   if (typeof value === "number" || typeof value === "boolean") return String(value);
   return fallback;
+}
+
+function downloadJson(filename: string, value: unknown) {
+  const blob = new Blob([JSON.stringify(value, null, 2)], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function readError(err: unknown): string {

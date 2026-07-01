@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -12,6 +12,10 @@ class TaskCreateRequest(BaseModel):
     lab_id: str = Field(default="lab_demo")
     project_id: str = Field(default="project_agent")
     meeting_type: MeetingType = Field(default=MeetingType.PROJECT_REPORT)
+    llm_provider: Literal["mock", "tongyi"] | None = Field(
+        default=None,
+        description="Per-task LLM mode. Defaults to server LLM_PROVIDER when omitted.",
+    )
     meeting_date: date
     raw_transcript: str = Field(min_length=20)
     speaker_mapping: dict[str, str] = Field(default_factory=dict)
@@ -20,6 +24,7 @@ class TaskCreateRequest(BaseModel):
 class TaskCreateResponse(BaseModel):
     task_id: str
     task_status: TaskStatus
+    llm_provider: Literal["mock", "tongyi"]
 
 
 class TaskStatusResponse(BaseModel):
@@ -64,4 +69,3 @@ class ReportResponse(BaseModel):
     role: str
     meeting_type: MeetingType
     report: dict[str, Any]
-

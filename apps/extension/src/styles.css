@@ -57,6 +57,15 @@ button:disabled {
   width: 380px;
 }
 
+.appShell.expanded {
+  height: min(720px, 100vh);
+  width: min(760px, 100vw);
+}
+
+.appShell.expanded .transcriptBox {
+  min-height: 260px;
+}
+
 .appHeader {
   align-items: center;
   background: rgba(255, 255, 255, 0.92);
@@ -100,6 +109,12 @@ button:disabled {
   margin: 2px 0 0;
 }
 
+.headerActions {
+  align-items: center;
+  display: flex;
+  gap: 4px;
+}
+
 .iconButton {
   align-items: center;
   background: transparent;
@@ -116,6 +131,11 @@ button:disabled {
 .iconButton:hover {
   background: var(--surface-muted);
   color: var(--text);
+}
+
+.iconButton.active {
+  background: #eef2ff;
+  color: var(--accent-strong);
 }
 
 .iconButton:active,

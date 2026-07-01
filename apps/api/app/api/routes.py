@@ -30,6 +30,7 @@ from app.schemas.tasks import (
 from app.services.memory import write_confirmed_memory
 from app.services.reporting import build_report
 from app.services.workflow import WorkflowRunner
+from app.llm.factory import get_llm_provider
 from app.tasks import process_meeting_task
 
 
@@ -56,12 +57,17 @@ async def create_task(payload: TaskCreateRequest, db: Annotated[Session, Depends
     db.commit()
     db.refresh(task)
 
+    llm_provider = (payload.llm_provider or settings.llm_provider).lower()
     if settings.sync_tasks:
-        await WorkflowRunner(db=db).run_task(task.task_id)
+        await WorkflowRunner(db=db, provider=get_llm_provider(llm_provider)).run_task(task.task_id)
     else:
-        process_meeting_task.delay(task.task_id)
+        process_meeting_task.delay(task.task_id, llm_provider)
 
-    return TaskCreateResponse(task_id=task.task_id, task_status=TaskStatus(task.task_status))
+    return TaskCreateResponse(
+        task_id=task.task_id,
+        task_status=TaskStatus(task.task_status),
+        llm_provider="tongyi" if llm_provider == "tongyi" else "mock",
+    )
 
 
 @router.get("/tasks/{task_id}/status", response_model=TaskStatusResponse)

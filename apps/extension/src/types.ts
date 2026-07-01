@@ -5,6 +5,8 @@ export type MeetingType =
   | "midterm_defense"
   | "final_defense";
 
+export type LLMProviderMode = "mock" | "tongyi";
+
 export type TaskStatus =
   | "queued"
   | "segmenting"
@@ -38,4 +40,3 @@ export interface ReportResponse {
   meeting_type: MeetingType;
   report: Record<string, unknown>;
 }
-

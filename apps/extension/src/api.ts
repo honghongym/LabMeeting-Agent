@@ -1,4 +1,4 @@
-import type { MeetingType, ReportResponse, TaskDraftResponse, TaskStatusResponse } from "./types";
+import type { LLMProviderMode, MeetingType, ReportResponse, TaskDraftResponse, TaskStatusResponse } from "./types";
 
 const API_BASE = "http://localhost:8000/api";
 
@@ -6,10 +6,11 @@ export async function createTask(payload: {
   lab_id: string;
   project_id: string;
   meeting_type: MeetingType;
+  llm_provider: LLMProviderMode;
   meeting_date: string;
   raw_transcript: string;
   speaker_mapping: Record<string, string>;
-}): Promise<{ task_id: string; task_status: string }> {
+}): Promise<{ task_id: string; task_status: string; llm_provider: LLMProviderMode }> {
   const res = await fetch(`${API_BASE}/tasks`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -49,4 +50,3 @@ async function ensureOk<T>(res: Response): Promise<T> {
   }
   return res.json() as Promise<T>;
 }
-

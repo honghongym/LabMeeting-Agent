@@ -10,15 +10,14 @@ from urllib.request import Request, urlopen
 from app.agent.chunking import TranscriptChunk
 from app.core.enums import MeetingType
 from app.llm.base import LLMProvider, LLMUsage, MapExtraction
-from app.llm.mock import MockProvider
 
 
 class TongyiProvider(LLMProvider):
-    """Tongyi OpenAI-compatible adapter with a mock fallback for open-source demos.
+    """Tongyi OpenAI-compatible adapter.
 
-    The public repo can run without credentials. When DASHSCOPE_API_KEY or
-    OPENAI_API_KEY is set, this class is the single integration point to
-    replace the fallback with DashScope/Qwen structured output calls.
+    The public repo defaults to MockProvider. When a task explicitly selects
+    Tongyi, this class is the integration point for DashScope/Qwen structured
+    output calls.
     """
 
     def __init__(self) -> None:
@@ -28,7 +27,6 @@ class TongyiProvider(LLMProvider):
             "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
         )
         self.model = os.getenv("DASHSCOPE_MODEL", "qwen-plus")
-        self.fallback = MockProvider()
 
     async def extract_chunk(
         self,
@@ -40,13 +38,7 @@ class TongyiProvider(LLMProvider):
         historical_memory: list[dict[str, Any]],
     ) -> MapExtraction:
         if not self.api_key:
-            return await self.fallback.extract_chunk(
-                meeting_type=meeting_type,
-                chunk=chunk,
-                schema_hint=schema_hint,
-                rolling_state=rolling_state,
-                historical_memory=historical_memory,
-            )
+            raise RuntimeError("Tongyi provider requires DASHSCOPE_API_KEY or OPENAI_API_KEY")
         prompt = {
             "task": "extract_meeting_chunk",
             "meeting_type": meeting_type.value,
@@ -79,12 +71,7 @@ class TongyiProvider(LLMProvider):
         speaker_mapping: dict[str, str],
     ) -> tuple[dict[str, Any], LLMUsage]:
         if not self.api_key:
-            return await self.fallback.reduce(
-                meeting_type=meeting_type,
-                map_results=map_results,
-                historical_memory=historical_memory,
-                speaker_mapping=speaker_mapping,
-            )
+            raise RuntimeError("Tongyi provider requires DASHSCOPE_API_KEY or OPENAI_API_KEY")
         prompt = {
             "task": "reduce_meeting_extractions",
             "meeting_type": meeting_type.value,
